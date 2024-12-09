@@ -32,25 +32,25 @@ void node_free(node_t *node){
 }
 
 void list_print(list_t *l) {
-  node_t *curr = l->head;
+  node_t *current = l->head;
   block_t *b;
   
-  if (curr == NULL){
+  if (current == NULL){
     printf("list is empty\n");
   }
-  while (curr != NULL){
-    b = curr->blk;
+  while (current != NULL){
+    b = current->blk;
     printf("PID=%d START:%d END:%d", b->pid, b->start, b->end);
-    curr = curr->next;
+    current = current->next;
   }
 }
 
 int list_length(list_t *l) { 
-  node_t *curr = l->head;
+  node_t *current = l->head;
   int i = 0;
-  while (curr != NULL){
+  while (current != NULL){
     i++;
-    curr = curr->next;
+    current = current->next;
   }
   
   return i; 
@@ -63,11 +63,11 @@ void list_add_to_back(list_t *l, block_t *blk){
     l->head = newNode;
   }
   else{
-    node_t *curr = l->head;
-    while(curr->next != NULL){
-      curr = curr->next;
+    node_t *current = l->head;
+    while(current->next != NULL){
+      current = current->next;
     }
-    curr->next = newNode;
+    current->next = newNode;
   }
 }
 
@@ -82,65 +82,85 @@ void list_add_at_index(list_t *l, block_t *blk, int index){
   int i = 0;
   
   node_t *newNode = node_alloc(blk);
-  node_t *curr = l->head;
+  node_t *current = l->head;
 
   if(index == 0){
     newNode->next = l->head->next;
     l->head = newNode;
   }
   else if(index > 0){
-    while(i < index && curr->next != NULL){
-      curr = curr->next;
+    while(i < index && current->next != NULL){
+      current = current->next;
       i++;
     }
-  newNode->next = curr->next;
-  curr->next = newNode;
+  newNode->next = current->next;
+  current->next = newNode;
   }
 }
 
-void list_add_ascending_by_address(list_t *l, block_t *newblk){
-  node_t *newNode = node_alloc(newblk);
-  node_t *curr = l->head;
-  node_t *prev = NULL;
-
-  while(curr != NULL && newblk->start > curr->blk->start){
-    prev = curr;
-    curr = curr->next;
-  }
-
-  if(prev == NULL){
-    newNode->next = l->head;
-    l->head = newNode;
-  }
-  else{
-    prev->next = newNode;
-    newNode->next = curr;
-  }
+void list_add_ascending_by_address(list_t *l, block_t *blk){
   
-}
-
-void list_add_ascending_by_blocksize(list_t *l, block_t *newblk){
-  node_t *newNode = node_alloc(newblk);
-  node_t *curr = l->head;
-  node_t *prev = NULL;
-  int newblk_size = newblk->end - newblk->start +1;
-
-  while (curr != NULL && (curr->blk->end - curr->blk->start + 1) < newblk_size){
-    prev = curr;
-    curr = curr->next;
-  }
-  if (prev == NULL){
-    newNode->next = l->head;
+   /*
+   * 1. Insert newblk into list l in ascending order based on the START address of the block.
+   * 
+   *    node_t *c = l.head;
+   *    Insert newblk After Current Node if:   newblk->start > c->start
+   */
+  node_t *current;
+  node_t *prev;
+  node_t *newNode = node_alloc(blk);
+  
+  if(l->head == NULL){
     l->head = newNode;
   }
   else{
-    prev -> next = l->head;
-    l->head = newNode;
+    prev = current = l->head;
+    
+    if(current->next == NULL) {  
+       if(blk->start <= current->blk->start) {  
+          newNode->next = l->head;
+          l->head = newNode;
+       }
+       else {   
+          current->next = newNode;
+          newNode->next = NULL;
+       }
+    }
+    else {  
+      
+       if(blk->start <= current->blk->start) {  
+          newNode->next = l->head;
+          l->head = newNode;
+       }
+       else {
+      
+          while(current != NULL && blk->start >= current->blk->start) {
+               prev = current;
+               current = current->next;    
+          }
+          prev->next = newNode;
+          newNode->next = current;
+       }
+    }
   }
 }
 
-void list_add_descending_by_blocksize(list_t *l, block_t *blk){
-  node_t *curr;
+void list_add_ascending_by_blocksize(list_t *l, block_t *blk){
+   /*
+   * 1. Insert newblk into list l in ascending order based on the blocksize.
+   *    blocksize is calculated :  blocksize = end - start +1
+   * 
+   *    Ex:  blocksize = newblk->end - newblk->start
+   * 
+   *         node_t *c = l.head;
+   * 
+   *         curr_blocksize = c->blk->end - c->blk->start +1;
+   * 
+   *         Insert newblk After Current Node if:   blocksize >= curr_blocksize
+   * 
+   *    USE the compareSize()
+   */
+  	node_t *current;
   node_t *prev;
   node_t *newNode = node_alloc(blk);
   int newblk_size = blk->end - blk->start;
@@ -150,80 +170,147 @@ void list_add_descending_by_blocksize(list_t *l, block_t *blk){
     l->head = newNode;
   }
   else{
-    prev = curr = l->head;
+    prev = current = l->head;
     
-    curblk_size = curr->blk->end - curr->blk->start + 1;
+    curblk_size = current->blk->end - current->blk->start + 1;
     
-    if(curr->next == NULL) {  //only one node in list
-       if(newblk_size >= curblk_size) {  // place in front of curr node
+    if(current->next == NULL) {  
+       if(newblk_size >= curblk_size) {  
           newNode->next = l->head;
           l->head = newNode;
        }
-       else {   // place behind curr node
-          curr->next = newNode;
+       else {   
+          current->next = newNode;
           newNode->next = NULL;
        }
     }
-    else {  // two or more nodes in list
+    else {  
       
-       if(newblk_size >= curblk_size) {  // place in front of curr node
+       if(newblk_size >= curblk_size) {  
           newNode->next = l->head;
           l->head = newNode;
        }
        else {
       
-          while(curr != NULL && newblk_size <= curblk_size) {
-               prev = curr;
-               curr = curr->next;
+          while(current != NULL && newblk_size <= curblk_size) {
+               prev = current;
+               current = current->next;
                
-               if(curr != NULL)  // the last one in the list
-                     curblk_size = curr->blk->end - curr->blk->start;
+               if(current != NULL)  
+                     curblk_size = current->blk->end - current->blk->start;
           }
           prev->next = newNode;
-          newNode->next = curr;
+          newNode->next = current;
+       }
+    }
+  }
+}
+
+void list_add_descending_by_blocksize(list_t *l, block_t *blk){
+  node_t *current;
+  node_t *prev;
+  node_t *newNode = node_alloc(blk);
+  int newblk_size = blk->end - blk->start;
+  int curblk_size;
+  
+  if(l->head == NULL){
+    l->head = newNode;
+  }
+  else{
+    prev = current = l->head;
+    
+    curblk_size = current->blk->end - current->blk->start + 1;
+    
+    if(current->next == NULL) {  //only one node in list
+       if(newblk_size >= curblk_size) {  // place in front of current node
+          newNode->next = l->head;
+          l->head = newNode;
+       }
+       else {   // place behind current node
+          current->next = newNode;
+          newNode->next = NULL;
+       }
+    }
+    else {  // two or more nodes in list
+      
+       if(newblk_size >= curblk_size) {  // place in front of current node
+          newNode->next = l->head;
+          l->head = newNode;
+       }
+       else {
+      
+          while(current != NULL && newblk_size <= curblk_size) {
+               prev = current;
+               current = current->next;
+               
+               if(current != NULL)  // the last one in the list
+                     curblk_size = current->blk->end - current->blk->start;
+          }
+          prev->next = newNode;
+          newNode->next = current;
        }
     }
   }
 }
 
 void list_coalese_nodes(list_t *l){ 
- node_t *curr = l->head;
+  /*
+   * 1. Assuming you have passed in a sorted list of blocks based on addresses in ascending order
+   * 2. While list is not empty,
+   *    a. compare two nodes at a time to see if the prev.END + 1 == current.START, if so, they are physically adjacent
+   *    combine them by setting the prev.END = current.END. 
+   *    b. If not adjacent go to #6
+   * 3. point the prev.NEXT to the current.NEXT to skip over current.
+   * 4. Free current
+   * 5. go back to #2
+   * 6. Advance prev = current, and current = current.NEXT
+   * 7. go back to #2
+   * 
+   * USE the compareSize()
+   */
+  if (!l->head || !l->head->next){
+		return;
+	}
+	
+	node_t *prev = l->head;
+	node_t *curr = l->head->next;
 
- while (curr != NULL && curr->next !=NULL){
-  block_t *blk = curr->blk;
-  block_t *next_blk = curr->next->blk;
-
-  if (blk->end + 1 == next_blk->start){
-    blk->end = next_blk->end;
-    node_t *temp = curr->next;
-    curr->next = temp->next;
-    free(temp->blk);
-    free(temp);
-  }
-  else{
-    curr = curr->next;
-  }
- }
+	
+	while(curr){
+		if (prev->blk->end + 1 == curr->blk->start){
+			prev->blk->end = curr->blk->end;
+			prev->next = curr->next;
+			
+			free(curr->blk);
+			free(curr);
+			
+			curr = prev->next;
+		}
+		else{
+			prev = curr;
+			curr = curr->next;
+		}
+	}
 }
 
 block_t* list_remove_from_back(list_t *l){
   block_t *value = NULL;
-  node_t *curr = l->head;
+  node_t *current = l->head;
 
   if(l->head != NULL){
     
-    if(curr->next == NULL) { // one node
+    if(current->next == NULL) { // one node
          l->head->next = NULL;
-         value = curr->blk;
-         node_free(curr);
+         value = current->blk;
+         node_free(current);
     }
     else {
-         while (curr->next->next != NULL){
-            curr = curr->next;
+         while (current->next->next != NULL){
+            current = current->next;
          }
-         value = curr->blk;
-         node_free(curr->next);
-         curr->next = NULL;
+         value = current->blk;
+         node_free(current->next);
+         current->next = NULL;
     }
   }
   return value;
@@ -235,8 +322,8 @@ block_t* list_get_from_front(list_t *l) {
     return value;
   }
   else{
-    node_t *curr = l->head;
-    value = curr->blk;
+    node_t *current = l->head;
+    value = current->blk;
   }
   return value; 
 }
@@ -248,10 +335,10 @@ block_t* list_remove_from_front(list_t *l) {
     return value;
   }
   else{
-    node_t *curr = l->head;
-    value = curr->blk;
+    node_t *current = l->head;
+    value = current->blk;
     l->head = l->head->next;
-    node_free(curr);
+    node_free(current);
   }
   return value; 
 }
@@ -269,24 +356,24 @@ block_t* list_remove_at_index(list_t *l, int index) {
     return list_remove_from_front(l);
   }
   else if (index > 0){
-    node_t *curr = l->head;
-    node_t *prev = curr;
+    node_t *current = l->head;
+    node_t *prev = current;
     
     i = 0;
-    while(curr != NULL && !found){
+    while(current != NULL && !found){
       if(i == index)
           found = true;
       else {
-         prev = curr;
-         curr = curr->next;
+         prev = current;
+         current = current->next;
          i++;
       }
     }
     
     if(found) {
-      value = curr->blk; 
-      prev->next = curr->next;
-      node_free(curr);
+      value = current->blk; 
+      prev->next = current->next;
+      node_free(current);
     }
   }
   return value; 
@@ -318,12 +405,12 @@ bool comparePid(int a, block_t *b) {
 
 
 bool list_is_in(list_t *l, block_t* value) { 
-  node_t *curr = l->head;
-  while(curr != NULL){
-    if(compareBlks(value, curr->blk)){
+  node_t *current = l->head;
+  while(current != NULL){
+    if(compareBlks(value, current->blk)){
       return true;
     }
-    curr = curr->next;
+    current = current->next;
   }
 return false; 
 }
@@ -338,14 +425,14 @@ block_t* list_get_elem_at(list_t *l, int index) {
     return list_get_from_front(l);
   }
   else if (index > 0){
-    node_t *curr = l->head;
+    node_t *current = l->head;
     
     i = 0;
-    while(curr != NULL){
+    while(current != NULL){
       if(i == index)
-          return(curr->blk);
+          return(current->blk);
       else {
-         curr = curr->next;
+         current = current->next;
          i++;
       }
     }
@@ -355,16 +442,16 @@ block_t* list_get_elem_at(list_t *l, int index) {
 
 int list_get_index_of(list_t *l, block_t* value){
  int i = 0;
- node_t *curr = l->head;
+ node_t *current = l->head;
  if(l->head == NULL){
     return -1;
   }
   
-  while (curr != NULL){
-   if (compareBlks(value,curr->blk)){
+  while (current != NULL){
+   if (compareBlks(value,current->blk)){
      return i;
     }
-    curr = curr->next;
+    current = current->next;
     i++;
   }
   return -1; 
@@ -372,12 +459,12 @@ int list_get_index_of(list_t *l, block_t* value){
 
 /* Checks to see if block of Size or greater exists in the list. */
 bool list_is_in_by_size(list_t *l, int Size){ 
-  node_t *curr = l->head;
-  while(curr != NULL){
-    if(compareSize(Size, curr->blk)){
+  node_t *current = l->head;
+  while(current != NULL){
+    if(compareSize(Size, current->blk)){
       return true;
     }
-    curr = curr->next;
+    current = current->next;
   }
 return false; 
 }
@@ -385,30 +472,28 @@ return false;
 /* Checks to see if pid of block exists in the list. */
 bool list_is_in_by_pid(list_t *l, int pid){ 
   
-  node_t *curr = l ->head;
-
-  while(curr != NULL){
-    if(comparePid(pid, curr->blk)){
-      return true;
-    }
-    curr = curr->next;
-  }
-  return false;
+  /* Iterate through the list to find a node with a blk that has blk->pid = pid
+   * 
+   * USE the comparePID()
+   * 
+   * Look at list_is_in_by_size()
+   */
+  return 0;
 }
 
 /* Returns the index at which the given block of Size or greater appears. */
 int list_get_index_of_by_Size(list_t *l, int Size){
  int i = 0;
- node_t *curr = l->head;
+ node_t *current = l->head;
  if(l->head == NULL){
     return -1;
   }
   
-  while (curr != NULL){
-   if (compareSize(Size,curr->blk)){
+  while (current != NULL){
+   if (compareSize(Size,current->blk)){
      return i;
     }
-    curr = curr->next;
+    current = current->next;
     i++;
   }
 
@@ -418,16 +503,16 @@ int list_get_index_of_by_Size(list_t *l, int Size){
 /* Returns the index at which the pid appears. */
 int list_get_index_of_by_Pid(list_t *l, int pid){
  int i = 0;
- node_t *curr = l->head;
+ node_t *current = l->head;
  if(l->head == NULL){
     return -1;
   }
   
-  while (curr != NULL){
-   if (comparePid(pid,curr->blk)){
+  while (current != NULL){
+   if (comparePid(pid,current->blk)){
      return i;
     }
-    curr = curr->next;
+    current = current->next;
     i++;
   }
 
