@@ -11,10 +11,16 @@ char const *server_MOTD = "Thanks for connecting to the BisonChat Server.\n\ncha
 
 struct node *head = NULL;
 
+struct room {
+    char name[50];
+    struct node *users;
+    struct room *next;
+};
+
 // Initialize default room
 void initialize_default_room() {
     pthread_mutex_lock(&rw_lock);
-    struct room *default_room = malloc(sizeof(struct room));
+    struct  room *default_room = malloc(sizeof(struct room));
     strcpy(default_room->name, "Lobby");
     default_room->users = NULL;
     default_room->next = NULL;
